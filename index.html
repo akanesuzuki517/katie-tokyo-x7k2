@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1a1a2e">
+<meta name="robots" content="noindex, nofollow">
 <title>Katie in Tokyo · Vintage & Treasure Hunt</title>
 <style>
   :root{
@@ -198,9 +199,66 @@
     .chev,.body{transition:none;}
     html{scroll-behavior:auto;}
   }
+
+  /* ---------- Passphrase gate ---------- */
+  body.locked .wrap{display:none;}
+  #gate{
+    position:fixed;inset:0;z-index:9999;display:none;
+    align-items:center;justify-content:center;padding:24px;
+    background:
+      radial-gradient(120% 80% at 80% -10%, rgba(192,138,62,.28), transparent 60%),
+      linear-gradient(160deg,var(--plum-deep) 0%, var(--plum) 55%, #2a1320 100%);
+  }
+  body.locked #gate{display:flex;}
+  #gate .gbox{
+    width:100%;max-width:340px;text-align:center;color:var(--paper);
+  }
+  #gate .geyebrow{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11px;letter-spacing:.42em;text-transform:uppercase;
+    color:var(--gold-soft);margin-bottom:18px;font-weight:600;
+  }
+  #gate h2{font-size:26px;font-weight:600;margin-bottom:8px;line-height:1.2;}
+  #gate p{
+    font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;
+    color:rgba(245,241,232,.75);margin-bottom:22px;line-height:1.6;
+  }
+  #gate input{
+    width:100%;font-family:inherit;font-size:16px;text-align:center;
+    color:var(--ink);background:var(--paper);
+    border:1px solid rgba(224,184,122,.5);border-radius:12px;
+    padding:13px 14px;margin-bottom:12px;outline:none;
+  }
+  #gate input:focus{border-color:var(--gold-soft);}
+  #gate button{
+    width:100%;font-family:"Helvetica Neue",Arial,sans-serif;font-weight:600;
+    font-size:13px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+    color:var(--plum-deep);background:var(--gold-soft);
+    border:none;border-radius:12px;padding:13px 14px;
+  }
+  #gate .gerr{
+    min-height:18px;margin-top:12px;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12px;letter-spacing:.04em;color:var(--rose);
+  }
 </style>
 </head>
-<body>
+<body class="locked">
+
+<!-- PASSPHRASE GATE -->
+<div id="gate">
+  <div class="gbox">
+    <div class="geyebrow">A day in Tokyo · for Katie</div>
+    <h2>Just for you, Katie</h2>
+    <p>Enter the passphrase Akane shared with you to open your itinerary.</p>
+    <form id="gateForm" autocomplete="off">
+      <input id="gateInput" type="password" inputmode="text"
+        placeholder="passphrase" aria-label="passphrase" autofocus>
+      <button type="submit">Open itinerary</button>
+      <div class="gerr" id="gateErr"></div>
+    </form>
+  </div>
+</div>
+
 <div class="wrap">
 
   <!-- COVER -->
@@ -475,6 +533,44 @@
 </div>
 
 <script>
+  // ---- Passphrase gate (client-side, light protection) ----
+  // SHA-256 of the passphrase. To change it, replace this hash with the
+  // SHA-256 of your new passphrase. Current passphrase: "tokyo-vintage".
+  var GATE_HASH = "b0356e88533b0c329af3574bb24a832f90bf5db84b8cab04c4685f049b8dc784";
+  var GATE_KEY = "katie-tokyo-unlocked";
+
+  function unlock(){
+    document.body.classList.remove("locked");
+  }
+  async function sha256(str){
+    var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(function(b){
+      return b.toString(16).padStart(2,"0");
+    }).join("");
+  }
+  (function initGate(){
+    try{
+      if(sessionStorage.getItem(GATE_KEY) === "1"){ unlock(); return; }
+    }catch(e){}
+    var form = document.getElementById("gateForm");
+    var input = document.getElementById("gateInput");
+    var err = document.getElementById("gateErr");
+    form.addEventListener("submit", async function(e){
+      e.preventDefault();
+      err.textContent = "";
+      var val = (input.value || "").trim().toLowerCase();
+      var hash = await sha256(val);
+      if(hash === GATE_HASH){
+        try{ sessionStorage.setItem(GATE_KEY, "1"); }catch(e){}
+        unlock();
+      }else{
+        err.textContent = "Hmm, that's not it — try again.";
+        input.value = "";
+        input.focus();
+      }
+    });
+  })();
+
   function tog(id){
     var card=document.getElementById(id);
     var body=card.querySelector('.body');
